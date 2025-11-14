@@ -163,7 +163,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         # Неизвестная команда
         await update.message.reply_text(
-            " кнопкИспользуй кнопки ниже или команду /start",
+            " ❌ Используй кнопки ниже или команду /start",
             reply_markup=get_keyboard()
         )
 
@@ -214,3 +214,4 @@ async def send_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ user_id должен быть числом.")
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {str(e)}")
+

@@ -1,39 +1,71 @@
-# advanced_notes_bot.py
+# Bot.py
 import json
 import logging
 import os
+from datetime import datetime
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, ContextTypes, filters
 )
 
-# Настройка логирования
+# ======================
+# Настройки
+# ======================
+NOTES_FILE = "notes.json"
+USERS_FILE = "users.json"
+ADMIN_USER_ID = 737163400
+TOKEN = "8526539150:AAGPBmux72y8EQGlZydw_1N9NxuVUwv8Ukg"
+
+# ======================
+# Логирование
+# ======================
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
-NOTES_FILE = "notes.json"
-
-# Загрузка заметок из файла
+# ======================
+# Работа с файлами
+# ======================
 def load_notes():
     if os.path.exists(NOTES_FILE):
-        with open(NOTES_FILE, "r", encoding="utf-8") as f:
-            try:
+        try:
+            with open(NOTES_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                # Убедимся, что ключи — строки (JSON не поддерживает int-ключи)
                 return {int(k): v for k, v in data.items()}
-            except json.JSONDecodeError:
-                return {}
+        except (json.JSONDecodeError, ValueError):
+            return {}
     return {}
 
-# Сохранение заметок в файл
 def save_notes(notes_dict):
-    # Преобразуем ключи в строки, т.к. JSON не поддерживает int как ключи объекта
     serializable = {str(uid): notes for uid, notes in notes_dict.items()}
     with open(NOTES_FILE, "w", encoding="utf-8") as f:
         json.dump(serializable, f, ensure_ascii=False, indent=2)
 
+def load_users():
+    if os.path.exists(USERS_FILE):
+        try:
+            with open(USERS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, ValueError):
+            return {}
+    return {}
+
+def save_user(user_id: int, user_data: dict):
+    users = load_users()
+    uid_str = str(user_id)
+    if uid_str not in users:
+        users[uid_str] = {
+            "username": user_data.get("username"),
+            "first_name": user_data.get("first_name"),
+            "last_name": user_data.get("last_name"),
+            "first_seen": datetime.now().isoformat()
+        }
+        with open(USERS_FILE, "w", encoding="utf-8") as f:
+            json.dump(users, f, ensure_ascii=False, indent=2)
+
+# ======================
 # Клавиатура
+# ======================
 def get_keyboard():
     return ReplyKeyboardMarkup(
         [
@@ -44,35 +76,41 @@ def get_keyboard():
         one_time_keyboard=False
     )
 
-# Состояния (для упрощения — через контекст)
-# Мы не используем ConversationHandler для простоты, но будем запоминать ожидание ввода в context.user_data
-
+# ======================
+# Обработчики
+# ======================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
+    save_user(user.id, {
+        "username": user.username,
+        "first_name": user.first_name,
+        "last_name": user.last_name
+    })
     await update.message.reply_text(
         f"Привет, {user.first_name}! 👋\n"
         "Я твой личный блокнот в Telegram.\n"
-        "Используй кнопки ниже или команды:",
+        "Используй кнопки ниже:",
         reply_markup=get_keyboard()
     )
 
-# ------------------------------
-# Обработка кнопок и команд
-# ------------------------------
-
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Сохраняем пользователя при любом сообщении
+    user = update.effective_user
+    save_user(user.id, {
+        "username": user.username,
+        "first_name": user.first_name,
+        "last_name": user.last_name
+    })
+
     text = update.message.text
     user_id = update.effective_user.id
     notes = load_notes()
-
     if user_id not in notes:
         notes[user_id] = []
 
-    # Инициализация состояния, если нужно
     state = context.user_data.get("awaiting")
 
     if state == "add":
-        # Пользователь должен был ввести текст заметки
         if text.strip():
             notes[user_id].append(text.strip())
             save_notes(notes)
@@ -82,7 +120,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["awaiting"] = None
 
     elif state == "edit_index":
-        # Ожидаем номер заметки для редактирования
         try:
             index = int(text.strip()) - 1
             if 0 <= index < len(notes[user_id]):
@@ -119,10 +156,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except ValueError:
             await update.message.reply_text("❌ Введите число.")
         context.user_data["awaiting"] = None
-
-    # ------------------------------
-    # Основные действия по кнопкам
-    # ------------------------------
 
     elif text == "📝 Добавить":
         context.user_data["awaiting"] = "add"
@@ -161,38 +194,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(msg)
 
     else:
-        # Неизвестная команда
         await update.message.reply_text(
             " ❌ Используй кнопки ниже или команду /start",
             reply_markup=get_keyboard()
         )
 
-def main():
-    TOKEN = "8526539150:AAGPBmux72y8EQGlZydw_1N9NxuVUwv8Ukg"  # ← замени на свой!
-
-    app = Application.builder().token(TOKEN).build()
-
-    # Обработчики команд
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("send", send_to_user))      # отправка сообщения пользователю
-    app.add_handler(CommandHandler("checkuser", check_user))   # просмотр информации о пользователях
-    
-    # Обработчик текстовых сообщений (все кнопки и вводы)
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-    print("Запуск бота...")
-    app.run_polling()
-
-if __name__ == "__main__":
-
-    main()
-
-# ------------------------------
-# Консоль админа
-# ------------------------------
-
-ADMIN_USER_ID = 737163400
-
+# ======================
+# Админ-команды
+# ======================
 async def send_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_USER_ID:
         await update.message.reply_text("❌ У вас нет прав на эту команду.")
@@ -208,12 +217,7 @@ async def send_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         target_user_id = int(context.args[0])
         message_text = " ".join(context.args[1:])
-
-        # Отправляем сообщение от имени бота
-        await context.bot.send_message(
-            chat_id=target_user_id,
-            text=message_text
-        )
+        await context.bot.send_message(chat_id=target_user_id, text=message_text)
         await update.message.reply_text(f"✅ Сообщение отправлено пользователю {target_user_id}")
     except ValueError:
         await update.message.reply_text("❌ user_id должен быть числом.")
@@ -231,7 +235,6 @@ async def check_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if not context.args:
-        # Список всех пользователей
         msg = f"👥 Всего пользователей: {len(users)}\n\n"
         for uid_str, data in users.items():
             name = (data.get("first_name") or "") + " " + (data.get("last_name") or "")
@@ -239,9 +242,8 @@ async def check_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg += f"`{uid_str}` | {name.strip()} | {uname}\n"
         await update.message.reply_text(msg, parse_mode="Markdown")
     else:
-        # Информация о конкретном пользователе
         try:
-            target_id = str(int(context.args[0]))  # нормализуем к строке
+            target_id = str(int(context.args[0]))
             if target_id not in users:
                 await update.message.reply_text(f"🔍 Пользователь `{target_id}` не найден.", parse_mode="Markdown")
                 return
@@ -250,9 +252,6 @@ async def check_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
             name = (data.get("first_name") or "") + " " + (data.get("last_name") or "")
             uname = data.get("username") or "—"
             first_seen = data.get("first_seen", "—")
-            note_count = 0
-
-            # Посчитаем заметки
             notes = load_notes()
             note_count = len(notes.get(int(target_id), []))
 
@@ -265,7 +264,22 @@ async def check_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"*Заметок:* {note_count}"
             )
             await update.message.reply_text(msg, parse_mode="Markdown")
-
         except ValueError:
             await update.message.reply_text("❌ user_id должен быть числом.")
 
+# ======================
+# Запуск
+# ======================
+def main():
+    app = Application.builder().token(TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("send", send_to_user))
+    app.add_handler(CommandHandler("checkuser", check_user))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    print("✅ Бот запущен...")
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()

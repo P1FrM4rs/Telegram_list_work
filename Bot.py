@@ -186,7 +186,7 @@ if __name__ == "__main__":
 # Консоль админа
 # ------------------------------
 
-ADMIN_USER_ID = 8526539150
+ADMIN_USER_ID = 737163400
 
 async def send_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_USER_ID:
@@ -214,4 +214,5 @@ async def send_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ user_id должен быть числом.")
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {str(e)}")
+
 

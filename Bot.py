@@ -13,7 +13,7 @@ from telegram.ext import (
 # ======================
 ADMIN_USER_ID = 737163400
 TOKEN = os.getenv("BOT_TOKEN")
-DATABASE_URL = "postgresql://postgres:xsaQSmBVfItMHzTDkcyDYkdVnbljbYjm@postgres-svxj.railway.internal:5432/railway"
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not TOKEN:
     raise ValueError("❌ BOT_TOKEN не установлен")
@@ -369,6 +369,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 

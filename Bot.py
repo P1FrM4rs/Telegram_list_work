@@ -14,6 +14,10 @@ from telegram.ext import (
 NOTES_FILE = "notes.json"
 USERS_FILE = "users.json"
 ADMIN_USER_ID = 737163400
+
+# 🔐 Лучше использовать переменную окружения:
+# TOKEN = os.getenv("BOT_TOKEN")
+# Но для простоты оставим токен здесь (временно)
 TOKEN = "8526539150:AAGPBmux72y8EQGlZydw_1N9NxuVUwv8Ukg"
 
 # ======================
@@ -50,7 +54,7 @@ def load_users():
             return {}
     return {}
 
-def save_user(user_id: int, user_data: dict):
+def save_user(user_id: int, user_ dict):
     users = load_users()
     uid_str = str(user_id)
     if uid_str not in users:

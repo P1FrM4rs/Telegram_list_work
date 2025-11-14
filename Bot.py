@@ -52,7 +52,7 @@ def load_users():
             return {}
     return {}
 
-def save_user(user_id: int, user_ dict):
+def save_user(user_id: int, user_data: dict):
     users = load_users()
     uid_str = str(user_id)
     if uid_str not in users:
@@ -285,4 +285,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

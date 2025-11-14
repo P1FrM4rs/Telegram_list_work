@@ -241,13 +241,13 @@ async def check_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for uid_str, data in users.items():
             name = (data.get("first_name") or "") + " " + (data.get("last_name") or "")
             uname = f"@{data['username']}" if data.get("username") else "—"
-            msg += f"`{uid_str}` | {name.strip()} | {uname}\n"
-        await update.message.reply_text(msg, parse_mode="Markdown")
+            msg += f"{uid_str} | {name.strip()} | {uname}\n"
+        await update.message.reply_text(msg)
     else:
         try:
             target_id = str(int(context.args[0]))
             if target_id not in users:
-                await update.message.reply_text(f"🔍 Пользователь `{target_id}` не найден.", parse_mode="Markdown")
+                await update.message.reply_text(f"🔍 Пользователь {target_id} не найден.")
                 return
 
             data = users[target_id]
@@ -258,14 +258,14 @@ async def check_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
             note_count = len(notes.get(int(target_id), []))
 
             msg = (
-                f"*👤 Информация о пользователе*\n\n"
-                f"*ID:* `{target_id}`\n"
-                f"*Имя:* {name.strip()}\n"
-                f"*Username:* {uname}\n"
-                f"*Первое обращение:* {first_seen}\n"
-                f"*Заметок:* {note_count}"
+                f"👤 Информация о пользователе\n\n"
+                f"ID: {target_id}\n"
+                f"Имя: {name.strip()}\n"
+                f"Username: {uname}\n"
+                f"Первое обращение: {first_seen}\n"
+                f"Заметок: {note_count}"
             )
-            await update.message.reply_text(msg, parse_mode="Markdown")
+            await update.message.reply_text(msg)
         except ValueError:
             await update.message.reply_text("❌ user_id должен быть числом.")
 
@@ -285,5 +285,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 

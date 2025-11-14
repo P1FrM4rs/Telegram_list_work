@@ -179,4 +179,38 @@ def main():
     app.run_polling()
 
 if __name__ == "__main__":
+
     main()
+
+# ------------------------------
+# Консоль админа
+# ------------------------------
+
+ADMIN_USER_ID = 8526539150
+
+async def send_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_USER_ID:
+        await update.message.reply_text("❌ У вас нет прав на эту команду.")
+        return
+
+    if len(context.args) < 2:
+        await update.message.reply_text(
+            "Использование:\n`/send <user_id> <сообщение>`",
+            parse_mode="Markdown"
+        )
+        return
+
+    try:
+        target_user_id = int(context.args[0])
+        message_text = " ".join(context.args[1:])
+
+        # Отправляем сообщение от имени бота
+        await context.bot.send_message(
+            chat_id=target_user_id,
+            text=message_text
+        )
+        await update.message.reply_text(f"✅ Сообщение отправлено пользователю {target_user_id}")
+    except ValueError:
+        await update.message.reply_text("❌ user_id должен быть числом.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка: {str(e)}")

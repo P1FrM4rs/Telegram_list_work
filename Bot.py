@@ -172,7 +172,12 @@ def main():
 
     app = Application.builder().token(TOKEN).build()
 
+    # Обработчики команд
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("send", send_to_user))      # отправка сообщения пользователю
+    app.add_handler(CommandHandler("checkuser", check_user))   # просмотр информации о пользователях
+    
+    # Обработчик текстовых сообщений (все кнопки и вводы)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("Запуск бота...")
@@ -215,4 +220,52 @@ async def send_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {str(e)}")
 
+async def check_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_USER_ID:
+        await update.message.reply_text("❌ У вас нет доступа к этой команде.")
+        return
+
+    users = load_users()
+    if not users:
+        await update.message.reply_text("📭 Нет зарегистрированных пользователей.")
+        return
+
+    if not context.args:
+        # Список всех пользователей
+        msg = f"👥 Всего пользователей: {len(users)}\n\n"
+        for uid_str, data in users.items():
+            name = (data.get("first_name") or "") + " " + (data.get("last_name") or "")
+            uname = f"@{data['username']}" if data.get("username") else "—"
+            msg += f"`{uid_str}` | {name.strip()} | {uname}\n"
+        await update.message.reply_text(msg, parse_mode="Markdown")
+    else:
+        # Информация о конкретном пользователе
+        try:
+            target_id = str(int(context.args[0]))  # нормализуем к строке
+            if target_id not in users:
+                await update.message.reply_text(f"🔍 Пользователь `{target_id}` не найден.", parse_mode="Markdown")
+                return
+
+            data = users[target_id]
+            name = (data.get("first_name") or "") + " " + (data.get("last_name") or "")
+            uname = data.get("username") or "—"
+            first_seen = data.get("first_seen", "—")
+            note_count = 0
+
+            # Посчитаем заметки
+            notes = load_notes()
+            note_count = len(notes.get(int(target_id), []))
+
+            msg = (
+                f"*👤 Информация о пользователе*\n\n"
+                f"*ID:* `{target_id}`\n"
+                f"*Имя:* {name.strip()}\n"
+                f"*Username:* {uname}\n"
+                f"*Первое обращение:* {first_seen}\n"
+                f"*Заметок:* {note_count}"
+            )
+            await update.message.reply_text(msg, parse_mode="Markdown")
+
+        except ValueError:
+            await update.message.reply_text("❌ user_id должен быть числом.")
 
